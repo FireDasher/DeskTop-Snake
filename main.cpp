@@ -6,7 +6,9 @@
 #include <ctime>
 #include <format>
 
-#define moveIcon(i, x, y) ListView_SetItemPosition(listView, i, x, y)
+const int leftWall = 3;
+
+#define moveIcon(_i, _x, _y) ListView_SetItemPosition(listView, _i, ((_x) + leftWall) * cellSize.x, (_y) * cellSize.y)
 
 struct Point {
 	int x, y;
@@ -21,7 +23,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	DWORD dwordcellSize = ListView_GetItemSpacing(listView, FALSE);
 	Point cellSize = {LOWORD(dwordcellSize), HIWORD(dwordcellSize)};
 
-	Point gridSize = {27, 11};
+	Point gridSize = {27 - leftWall, 11};
 
 	// Save icon positions
 	// stupid memory trick because the stupid getter function takes a stupid pointer instead of just returning the stupid value!!
@@ -41,23 +43,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	std::vector<Point> snake = { {gridSize.x / 2, gridSize.y / 2} };
 	Direction dir = RIGHT;
+	Direction lastDir = RIGHT;
 
 	Point food = { rand() % gridSize.x, rand() % gridSize.y };
 
-	bool running = true;
-
 	DWORD lastTick = GetTickCount();
 
-	while (running) {
+	while (true) {
 		// input
-		if (GetAsyncKeyState(VK_UP) & 0x8000 && dir != DOWN) dir = UP;
-		if (GetAsyncKeyState(VK_DOWN) & 0x8000 && dir != UP) dir = DOWN;
-		if (GetAsyncKeyState(VK_LEFT) & 0x8000 && dir != RIGHT) dir = LEFT;
-		if (GetAsyncKeyState(VK_RIGHT) & 0x8000 && dir != LEFT) dir = RIGHT;
+		if (GetAsyncKeyState(VK_UP) & 0x8000 && lastDir != DOWN) dir = UP;
+		if (GetAsyncKeyState(VK_DOWN) & 0x8000 && lastDir != UP) dir = DOWN;
+		if (GetAsyncKeyState(VK_LEFT) & 0x8000 && lastDir != RIGHT) dir = LEFT;
+		if (GetAsyncKeyState(VK_RIGHT) & 0x8000 && lastDir != LEFT) dir = RIGHT;
 
 		DWORD now = GetTickCount();
 		if (now - lastTick > 100) {
 			lastTick = now;
+			lastDir = dir;
 
 			// move
 			Point head = snake.front();
@@ -67,14 +69,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			if (dir == RIGHT) head.x++;
 
 			// wall collision
-			if (head.x < 0 || head.x >= gridSize.x || head.y < 0 || head.y >= gridSize.y) {
-				running = false;
+			if (head.x < 0 || head.x > gridSize.x || head.y < 0 || head.y > gridSize.y) {
+				goto break_running;
 			}
 
 			// self collision
 			for (Point &p : snake) {
 				if (p.x == head.x && p.y == head.y) {
-					running = false;
+					goto break_running;
 				}
 			}
 
@@ -93,13 +95,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			// Render
 
 			for (int i = 0; i < snake.size(); ++i) {
-				moveIcon(i, snake[i].x * cellSize.x, snake[i].y * cellSize.y);
+				moveIcon(i, snake[i].x, snake[i].y);
 			}
-			moveIcon(snake.size(), food.x * cellSize.x, food.y * cellSize.y);
+			moveIcon(snake.size(), food.x, food.y);
 		}
 
 		Sleep(1);
 	}
+	break_running: // Closest thing to labelled loops
 	
 	MessageBox(nullptr, std::format("Game Over! Score: {}", snake.size() - 1).c_str(), "Desktop Snake", MB_OK | MB_ICONEXCLAMATION);
 
